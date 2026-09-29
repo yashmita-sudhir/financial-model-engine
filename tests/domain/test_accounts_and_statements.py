@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from pydantic import ValidationError
 
@@ -8,6 +10,7 @@ from financial_model_engine.domain import (
     FinancialStatementType,
     Unit,
 )
+from financial_model_engine.expressions import Multiply, Reference
 
 
 def test_valid_financial_account():
@@ -52,3 +55,26 @@ def test_line_item_does_not_validate_dependency_references():
         dependencies=["does_not_exist", "a"],
     )
     assert item.dependencies == ["does_not_exist", "a"]
+
+
+def test_line_item_formula_defaults_to_none():
+    item = FinancialLineItem(
+        id="customers",
+        name="Customers",
+        statement_type=FinancialStatementType.INCOME_STATEMENT,
+        unit=Unit.COUNT,
+    )
+    assert item.formula is None
+
+
+def test_line_item_with_formula():
+    item = FinancialLineItem(
+        id="revenue",
+        name="Revenue",
+        statement_type=FinancialStatementType.INCOME_STATEMENT,
+        unit=Unit.CURRENCY,
+        dependencies=["customers", "monthly_price"],
+        formula=Multiply(left=Reference(id="customers"), right=Reference(id="monthly_price")),
+    )
+    assert item.formula.kind == "multiply"
+    assert item.formula.left.id == "customers"
